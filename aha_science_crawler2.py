@@ -13,7 +13,7 @@ from stem.control import Controller
 from multiprocessing import Pool
 import time
 import random
-
+import pandas as pd
 
 
 
@@ -35,10 +35,16 @@ import random
 # clean # page_num = 234
 # laundry # page_num = 263
 
+data = pd.read_csv("aha_info-2.csv", delimiter=",") # 650이 넘지않는 재무설계, 무역 뺀것
+data = data[20:]
+print(data)
+for i in range(0, 25-2-20):
+    domain_name = data.iloc[i][0]
+    domain_num = data.iloc[i][1]
+    # page_num = data.iloc[i][3]
+    page_num = 650
 
-
-
-
+    
 
 # Tor 프록시 서버 설정
 
@@ -61,9 +67,9 @@ import random
 # file_path = "note_test/"
 # 73: 과학 52: 생활꿀팁 106: 고민상담 68: 반려동물 98: 청소 102: 세탁
 
-domain_num = 73
-domain_name = "과학"
-page_num = 263
+# domain_num = 73
+# domain_name = "과학"
+# page_num = 263
 
 def get_HTML(aha_url):
     # bypass_ip()
@@ -73,17 +79,21 @@ def get_HTML(aha_url):
             # proxies= proxies,
             ).text
     output = ftfy.fix_encoding(output)
-    # open(f"{domain_name}/pages/{aha_url.replace('https://', '').replace('/', '-')}.html", "w").write(output)
+    os.makedirs(f"{domain_name}/pages", exist_ok=True)
+    open(f"{domain_name}/pages/{aha_url.replace('https://', '').replace('/', '-')}.html", "w").write(output)
 
 def get_link(output):
         soup = BeautifulSoup(output, 'html.parser')
         #__layout > div > div.base > div.page-container.-pt.page > section > div > main > div > div.md\:tw-w-3\/4.md\:tw-pr-4 > div:nth-child(2) > div:nth-child(1) > div > article > div > header > a
         my_titles = soup.select("head > script") #아이디로 태그 찾음
 
+        # my_titles = soup.select('script', attrs={'type': 'application/ld+json'})
+        # print(my_titles)
+        
         for title in my_titles:
             global aha_url_list
             aha_url_list = title.text
-            print(aha_url_list)
+            # print(aha_url_list)
 
         json_data = json.loads(aha_url_list)
         # print(json_data["mainEntity"]['itemListElement'])
@@ -102,24 +112,40 @@ def get_link(output):
             #     pool.map(get_HTML, aha_url)
         
 if __name__=="__main__":
+
+
     beforeCrawling = datetime.datetime.now()
     beforeCrawlingTime = beforeCrawling.strftime("%Y-%m-%d %H:%M:%S")
     print("크롤링 시작 시간", beforeCrawlingTime)
         
-    for i in tqdm(range(1,page_num)):
-        output = requests.get(
-                f"https://www.a-ha.io/questions/categories/{domain_name}?page={i}&status=published&order=recent", ## 일반적인거 
-                # f"https://www.a-ha.io/questions/categories/{domain_name}?page={i}&status=published&order=recent",
-                # f"https://www.a-ha.io/questions/categories/{domain_name}?page={i}&status=waiting&status=ready&status=outdated&order=recent", ## 청소
-                # headers=headers, 
-                # proxies= proxies,
-                ).text
         
-        # print(get_link(output))
-        with Pool(processes=10) as pool:
-            pool.map(get_HTML, get_link(output))
-    
-    
+    for i in range(0, 25-2-20):
+        domain_name = data.iloc[i][0]
+        domain_num = data.iloc[i][1]
+        page_num = 650
+        
+        beforeCrawling = datetime.datetime.now()
+        beforeCrawlingTime = beforeCrawling.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"{domain_name} 크롤링 시작 시간", beforeCrawlingTime)
+        
+        for i in tqdm(range(1,page_num)):
+            output = requests.get(
+                    f"https://www.a-ha.io/questions/categories/{domain_num}?page={i}&status=published&order=recent", ## 일반적인거 
+                    # f"https://www.a-ha.io/questions/categories/{domain_num}?page={i}&status=published&order=recent",
+                    # f"https://www.a-ha.io/questions/categories/{domain_num}?page={i}&status=waiting&status=ready&status=outdated&order=recent", ## 청소
+                    # headers=headers, 
+                    # proxies= proxies,
+                    ).text
+            
+            # print(get_link(output))
+            with Pool(processes=10) as pool:
+                pool.map(get_HTML, get_link(output))
+        
+        
+        afterCrawling = datetime.datetime.now()
+        afterCrawlingTime = afterCrawling.strftime("%Y-%m-%d %H:%M:%S")                   
+        print(f"{domain_name}크롤링 종료 시간", afterCrawling)
+        
     afterCrawling = datetime.datetime.now()
     afterCrawlingTime = afterCrawling.strftime("%Y-%m-%d %H:%M:%S")                   
-    print("크롤링 종료 시간", afterCrawling)
+    print(f"크롤링 종료 시간", afterCrawling)
